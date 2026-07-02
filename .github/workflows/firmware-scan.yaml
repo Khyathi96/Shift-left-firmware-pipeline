@@ -1,0 +1,16 @@
+name: Firmware Security Scan
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:     # lets you trigger manually from the Actions tab
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Test job
+        run: echo "Pipeline triggered by ${{ github.event_name }} on commit ${{ github.sha }}"
