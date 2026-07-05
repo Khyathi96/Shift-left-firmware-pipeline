@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Locate firmware artifact
         run: |
@@ -21,3 +21,25 @@ jobs:
           fi
           echo "Found firmware: $FIRMWARE ($(du -h $FIRMWARE | cut -f1))"
           echo "FIRMWARE_PATH=$FIRMWARE" >> $GITHUB_ENV
+
+      - name: Install extraction tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y binwalk squashfs-tools
+
+      - name: Extract firmware filesystem
+        run: |
+          echo "=== Binwalk signature scan ==="
+          binwalk --signature "$FIRMWARE_PATH"
+
+          echo "=== Extracting ==="
+          binwalk --extract --directory extracted "$FIRMWARE_PATH"
+
+          ROOTFS=$(find extracted -type d -name "squashfs-root*" | head -n 1)
+          if [ -z "$ROOTFS" ]; then
+            echo "::error::Extraction produced no root filesystem"
+            exit 1
+          fi
+          echo "Extracted rootfs at: $ROOTFS"
+          find "$ROOTFS" | head -40
+          echo "ROOTFS_PATH=$ROOTFS" >> $GITHUB_ENV
