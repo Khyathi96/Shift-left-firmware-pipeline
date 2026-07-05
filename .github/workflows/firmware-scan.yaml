@@ -43,3 +43,18 @@ jobs:
           echo "Extracted rootfs at: $ROOTFS"
           find "$ROOTFS" | head -40
           echo "ROOTFS_PATH=$ROOTFS" >> $GITHUB_ENV
+
+      - name: Run Firmwalker secret scan
+        run: |
+          git clone --depth 1 https://github.com/craigz28/firmwalker.git /tmp/firmwalker
+          cd /tmp/firmwalker
+          bash firmwalker.sh "$GITHUB_WORKSPACE/$ROOTFS_PATH" "$GITHUB_WORKSPACE/firmwalker_output.txt"
+
+          echo "=== Firmwalker findings ==="
+          cat "$GITHUB_WORKSPACE/firmwalker_output.txt"
+
+      - name: Upload Firmwalker report
+        uses: actions/upload-artifact@v6
+        with:
+          name: firmwalker-report
+          path: firmwalker_output.txt
