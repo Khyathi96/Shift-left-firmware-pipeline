@@ -12,5 +12,12 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Test job
-        run: echo "Pipeline triggered by ${{ github.event_name }} on commit ${{ github.sha }}"
+      - name: Locate firmware artifact
+        run: |
+          FIRMWARE=$(find firmware/ -name "*.squashfs" -o -name "*.bin" -o -name "*.tar.gz" | head -n 1)
+          if [ -z "$FIRMWARE" ]; then
+            echo "::error::No firmware artifact found in firmware/"
+            exit 1
+          fi
+          echo "Found firmware: $FIRMWARE ($(du -h $FIRMWARE | cut -f1))"
+          echo "FIRMWARE_PATH=$FIRMWARE" >> $GITHUB_ENV
