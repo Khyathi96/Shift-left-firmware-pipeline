@@ -1,0 +1,24 @@
+{
+  "project": "Shift-Left Firmware SecOps Pipeline",
+  "domain_mapping_version": "1.0",
+  "hardware_context_rules": [
+    {
+      "software_vulnerability_pattern": "plaintext_credentials_or_private_keys",
+      "physical_exploitation_vector": "Attacker attaches a hardware programmer clip to the External SPI Flash Memory Chip and dumps the binary filesystem logic lanes.",
+      "physical_operational_impact": "Full system compromise. Attacker reverse-engineers the partition layout, clones the device profile, or flashes arbitrary malicious boot code.",
+      "recommended_hardware_mitigation": "Transition to a secure microcontroller utilizing Internal Encrypted Flash Memory, or integrate a dedicated Secure Element/TPM chip."
+    },
+    {
+      "software_vulnerability_pattern": "unauthenticated_debug_shell_active",
+      "physical_exploitation_vector": "Attacker wires a USB-to-UART serial interface converter directly to the exposed UART Serial Test Pads on the board interface.",
+      "physical_operational_impact": "The attacker accesses an active root command-line terminal during execution, enabling local shell script execution or manual kernel panic overrides.",
+      "recommended_hardware_mitigation": "Disable production compilation serial console output; omit physical copper testing pads entirely from final production PCB layouts."
+    },
+    {
+      "software_vulnerability_pattern": "unsigned_firmware_update_allowed",
+      "physical_exploitation_vector": "Attacker connects an external malicious payload device into accessible USB / external expansion bus entry ports.",
+      "physical_operational_impact": "Irreversible permanent bricking of the operational vehicle asset, or rogue code injection over the localized internal controller network.",
+      "recommended_hardware_mitigation": "Enforce hardware-rooted Secure Boot routines on the system SoC, requiring cryptographic validation before reading instruction blocks."
+    }
+  ]
+}
