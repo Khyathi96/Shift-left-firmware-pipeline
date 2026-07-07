@@ -95,3 +95,12 @@ jobs:
         with:
           name: unified-security-report
           path: unified_report.json
+
+      - name: Send report to Make.com
+        run: |
+          curl --fail-with-body -X POST \
+            -H "Content-Type: application/json" \
+            --data @unified_report.json \
+            "$MAKE_WEBHOOK_URL"
+        env:
+          MAKE_WEBHOOK_URL: ${{ secrets.MAKE_WEBHOOK_URL }}
