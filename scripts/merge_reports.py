@@ -3,14 +3,36 @@
 import json, os, re, sys
 from datetime import datetime, timezone
 
-fw_txt, trivy_json, opkg_json, out_path = sys.argv[1:5]
+# Maps our finding 'type' -> Hardware rule pattern
+TYPE_TO_HW_PATTERN = {
+    "hardcoded_credential": "plaintext_credentials_or_private_keys",
+    "private_key":          "plaintext_credentials_or_private_keys",
+    "exposed_service":      "unauthenticated_debug_shell_active",
+    # 'outdated_package' intentionally unmapped until Aishwarya adds a CVE rule
+}
+
+fw_txt, trivy_json, opkg_json, hw_rules_path, out_path = sys.argv[1:6]
+hw_rules = {}
+if os.path.exists(hw_rules_path):
+    for rule in json.load(open(hw_rules_path)).get("hardware_context_rules", []):
+        hw_rules[rule["software_vulnerability_pattern"]] = rule
 findings = []
 
 def add(source, ftype, severity, file, identifier, description):
+    pattern = TYPE_TO_HW_PATTERN.get(ftype)
+    rule = hw_rules.get(pattern) if pattern else None
+    hardware_context = None
+    if rule:
+        hardware_context = {
+            "physical_vector": rule["physical_exploitation_vector"],
+            "physical_impact": rule["physical_operational_impact"],
+            "hardware_mitigation": rule["recommended_hardware_mitigation"],
+        }
     findings.append({
         "id": f"F-{len(findings)+1:03d}", "source": source, "type": ftype,
         "severity": severity, "file": file, "identifier": identifier,
-        "description": description, "redacted": True})
+        "description": description, "redacted": True,
+        "hardware_context": hardware_context})
 
 # --- Firmwalker: text output; paths listed under pattern headings ---
 SEVERITY = {"password": ("hardcoded_credential", "HIGH"),
