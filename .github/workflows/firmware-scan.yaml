@@ -85,7 +85,7 @@ jobs:
             trivy-results.json
             opkg_cve_results.json
 
-- name: Build unified report
+      - name: Build unified report
         run: |
           python3 scripts/merge_reports.py firmwalker_output.txt trivy-results.json opkg_cve_results.json hardware_risk_rules.json unified_report.json
           cat unified_report.json
