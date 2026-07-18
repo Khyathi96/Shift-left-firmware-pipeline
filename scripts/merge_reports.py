@@ -3,30 +3,33 @@
 import json, os, re, sys
 from datetime import datetime, timezone
 
-# Maps our finding 'type' -> Hardware rule pattern
-TYPE_TO_HW_PATTERN = {
-    "hardcoded_credential": "plaintext_credentials_or_private_keys",
-    "private_key":          "plaintext_credentials_or_private_keys",
-    "exposed_service":      "unauthenticated_debug_shell_active",
-    # 'outdated_package' intentionally unmapped until Aishwarya adds a CVE rule
+# Maps our finding 'type' -> Hardware rule ID
+TYPE_TO_HW_RULE = {
+    "hardcoded_credential": "HW-RULE-001",   # SPI flash dump of plaintext creds
+    "private_key":          "HW-RULE-001",
+    "exposed_service":      "HW-RULE-002",   # UART console / terminal daemons
+    "outdated_package":     "HW-RULE-005",   # NEW: CVE / outdated library rule
+    # HW-RULE-003 (JTAG) and HW-RULE-004 (unsigned firmware) have no detector yet
 }
 
 fw_txt, trivy_json, opkg_json, hw_rules_path, out_path = sys.argv[1:6]
 hw_rules = {}
 if os.path.exists(hw_rules_path):
     for rule in json.load(open(hw_rules_path)).get("hardware_context_rules", []):
-        hw_rules[rule["software_vulnerability_pattern"]] = rule
+        hw_rules[rule["id"]] = rule
 findings = []
 
 def add(source, ftype, severity, file, identifier, description):
-    pattern = TYPE_TO_HW_PATTERN.get(ftype)
-    rule = hw_rules.get(pattern) if pattern else None
+    rule_id = TYPE_TO_HW_RULE.get(ftype)
+    rule = hw_rules.get(rule_id) if rule_id else None
     hardware_context = None
     if rule:
         hardware_context = {
-            "physical_vector": rule["physical_exploitation_vector"],
-            "physical_impact": rule["physical_operational_impact"],
-            "hardware_mitigation": rule["recommended_hardware_mitigation"],
+            "rule_id": rule["id"],
+            "attack_surface": rule["attack_surface"],
+            "access_required": rule["access_level_required"],
+            "physical_vector": rule["simulated_exposure_vector"],
+            "hw_severity": rule["default_severity"],
         }
     findings.append({
         "id": f"F-{len(findings)+1:03d}", "source": source, "type": ftype,
