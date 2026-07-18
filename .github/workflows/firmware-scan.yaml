@@ -103,17 +103,5 @@ jobs:
             --data @unified_report.json \
             "$MAKE_WEBHOOK_URL"
 
-          curl --fail-with-body -X POST \
-            -H "Content-Type: application/json" \
-            --data @unified_report.json \
-            "$RASHMI_WEBHOOK_URL"
-
-          curl --fail-with-body -X POST \
-            -H "Content-Type: application/json" \
-            --data @unified_report.json \
-            "$Aishwarya_WEBHOOK_URL"
-
         env:
           MAKE_WEBHOOK_URL: ${{ secrets.MAKE_WEBHOOK_URL }}
-          Aishwarya_WEBHOOK_URL: ${{ secrets.AISHWARYA_MAKEAI }}
-          RASHMI_WEBHOOK_URL: ${{ secrets.RASHMI_MAKEAI_URL }}
