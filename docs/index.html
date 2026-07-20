@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Firmware SecOps Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="data.js"></script>
+<style>
+  body { font-family: system-ui, sans-serif; margin: 0; background: #0f1117; color: #e6e6e6; }
+  header { padding: 20px 28px; border-bottom: 1px solid #262a35; }
+  h1 { margin: 0; font-size: 20px; } .sub { color: #8b93a7; font-size: 13px; margin-top: 4px; }
+  .tabs { display: flex; gap: 8px; padding: 16px 28px 0; }
+  .tab { padding: 8px 16px; background: #1a1d27; border: 1px solid #262a35; border-radius: 6px 6px 0 0; cursor: pointer; }
+  .tab.active { background: #262a35; font-weight: 600; }
+  .panel { display: none; padding: 24px 28px; } .panel.active { display: block; }
+  .cards { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 24px; }
+  .card { flex: 1; min-width: 120px; background: #1a1d27; border: 1px solid #262a35; border-radius: 8px; padding: 16px; }
+  .card .n { font-size: 32px; font-weight: 700; } .card .l { color: #8b93a7; font-size: 13px; }
+  .high { color: #ff5c5c; } .medium { color: #ffb020; } .info { color: #4a9eff; }
+  table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 13px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid #262a35; }
+  th { color: #8b93a7; } code { background: #262a35; padding: 2px 6px; border-radius: 4px; }
+  .pill { padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+  .pill.HIGH { background: #3a1414; color: #ff5c5c; } .pill.MEDIUM { background: #3a2c14; color: #ffb020; } .pill.INFO { background: #14263a; color: #4a9eff; }
+  .chartbox { max-width: 480px; margin-bottom: 24px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>🛡️ Firmware SecOps Dashboard</h1>
+  <div class="sub" id="meta"></div>
+</header>
+<div class="tabs">
+  <div class="tab active" onclick="showTab('current')">Current</div>
+  <div class="tab" onclick="showTab('trends')">Trends</div>
+</div>
+
+<div id="current" class="panel active">
+  <div class="cards">
+    <div class="card"><div class="n" id="c-total">0</div><div class="l">Total Findings</div></div>
+    <div class="card"><div class="n high" id="c-high">0</div><div class="l">High</div></div>
+    <div class="card"><div class="n medium" id="c-med">0</div><div class="l">Medium</div></div>
+    <div class="card"><div class="n info" id="c-info">0</div><div class="l">Info</div></div>
+  </div>
+  <div class="chartbox"><canvas id="sevChart"></canvas></div>
+  <table><thead><tr><th>ID</th><th>Severity</th><th>Type</th><th>Location</th><th>Identifier</th><th>Source</th><th>Physical Risk</th></tr></thead>
+  <tbody id="findings"></tbody></table>
+</div>
+
+<div id="trends" class="panel">
+  <div class="chartbox" style="max-width:640px"><canvas id="trendChart"></canvas></div>
+  <table><thead><tr><th>Date</th><th>Commit</th><th>Total</th><th>High</th><th>Medium</th><th>Info</th></tr></thead>
+  <tbody id="history"></tbody></table>
+</div>
+
+<script>
+function showTab(id){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  event.target.classList.add('active');
+}
+const d = window.FIRMWARE_LATEST, hist = window.FIRMWARE_HISTORY || [];
+document.getElementById('meta').textContent = `Commit ${d.commit} · ${d.timestamp}`;
+document.getElementById('c-total').textContent = d.summary.total;
+document.getElementById('c-high').textContent = d.summary.high;
+document.getElementById('c-med').textContent = d.summary.medium;
+document.getElementById('c-info').textContent = d.summary.info;
+document.getElementById('findings').innerHTML = d.findings.map(f=>`<tr>
+  <td>${f.id}</td><td><span class="pill ${f.severity}">${f.severity}</span></td>
+  <td>${f.type}</td><td><code>${f.file}</code></td><td>${f.identifier}</td><td>${f.source}</td>
+  <td>${f.hardware_context ? f.hardware_context.physical_vector : '—'}</td></tr>`).join('');
+new Chart(document.getElementById('sevChart'), { type:'doughnut',
+  data:{ labels:['High','Medium','Info'], datasets:[{ data:[d.summary.high,d.summary.medium,d.summary.info], backgroundColor:['#ff5c5c','#ffb020','#4a9eff'] }] },
+  options:{ plugins:{ legend:{ labels:{ color:'#e6e6e6' } }, title:{ display:true, text:'Findings by Severity', color:'#e6e6e6' } } } });
+document.getElementById('history').innerHTML = hist.map(h=>`<tr><td>${h.date}</td><td><code>${h.commit}</code></td><td>${h.total}</td><td class="high">${h.high}</td><td class="medium">${h.medium}</td><td class="info">${h.info}</td></tr>`).join('');
+new Chart(document.getElementById('trendChart'), { type:'line',
+  data:{ labels:hist.map(h=>h.date), datasets:[
+    { label:'Total', data:hist.map(h=>h.total), borderColor:'#8b93a7', tension:.3 },
+    { label:'High', data:hist.map(h=>h.high), borderColor:'#ff5c5c', tension:.3 } ] },
+  options:{ plugins:{ legend:{ labels:{ color:'#e6e6e6' } }, title:{ display:true, text:'Vulnerabilities Over Time', color:'#e6e6e6' } }, scales:{ x:{ ticks:{ color:'#8b93a7' } }, y:{ ticks:{ color:'#8b93a7' }, beginAtZero:true } } } });
+</script>
+</body>
+</html>

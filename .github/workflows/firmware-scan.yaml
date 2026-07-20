@@ -3,9 +3,14 @@ name: Firmware Security Scan
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - 'docs/**'
   pull_request:
     branches: [main]
   workflow_dispatch:    # lets you trigger manually from the Actions tab
+
+permissions:
+  contents: write
 
 jobs:
   scan:
@@ -90,6 +95,18 @@ jobs:
           python3 scripts/merge_reports.py firmwalker_output.txt trivy-results.json opkg_cve_results.json hardware_risk_rules.json unified_report.json
           cat unified_report.json
 
+      - name: Generate dashboard data
+        run: python3 scripts/build_dashboard_data.py unified_report.json docs/data.js
+
+      - name: Commit dashboard data
+        if: github.event_name == 'push'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/data.js
+          git diff --staged --quiet || git commit -m "chore: update dashboard data [skip ci]"
+          git push
+
       - name: Upload unified report
         uses: actions/upload-artifact@v6
         with:
@@ -102,6 +119,5 @@ jobs:
             -H "Content-Type: application/json" \
             --data @unified_report.json \
             "$MAKE_WEBHOOK_URL"
-
         env:
           MAKE_WEBHOOK_URL: ${{ secrets.MAKE_WEBHOOK_URL }}
