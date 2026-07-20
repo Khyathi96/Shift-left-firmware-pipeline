@@ -1,0 +1,25 @@
+# --- Scan outputs (generated fresh in CI every run; never commit) ---
+firmwalker_output.txt
+trivy-results.json
+opkg_cve_results.json
+unified_report.json
+
+# --- Firmware extraction output (Binwalk / unsquashfs) ---
+extracted/
+_*.extracted/
+extracted_pipeline_rootfs/
+
+# --- Python ---
+__pycache__/
+*.pyc
+
+# --- Secrets / local env ---
+.env
+*.local
+
+# --- OS / editor noise ---
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp

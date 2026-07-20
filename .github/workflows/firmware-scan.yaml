@@ -3,7 +3,14 @@ name: Firmware Security Scan
 on:
   push:
     branches: [main]
-  workflow_dispatch:     # lets you trigger manually from the Actions tab
+    paths-ignore:
+      - 'docs/**'
+  pull_request:
+    branches: [main]
+  workflow_dispatch:    # lets you trigger manually from the Actions tab
+
+permissions:
+  contents: write
 
 jobs:
   scan:
@@ -58,3 +65,59 @@ jobs:
         with:
           name: firmwalker-report
           path: firmwalker_output.txt
+
+      - name: Install Trivy
+        run: |
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sudo sh -s -- -b /usr/local/bin
+          trivy --version
+
+      - name: Trivy CVE scan
+        run: |
+          trivy rootfs --format json --output trivy-results.json "$ROOTFS_PATH"
+          echo "=== Trivy summary (expected: no OS packages detected — opkg unsupported) ==="
+          trivy rootfs "$ROOTFS_PATH" || true
+
+      - name: Custom opkg CVE check
+        run: |
+          bash scripts/opkg_cve_check.sh "$ROOTFS_PATH/usr/lib/opkg/status" opkg_cve_results.json
+          echo "=== opkg findings ===" && cat opkg_cve_results.json
+
+      - name: Upload CVE reports
+        uses: actions/upload-artifact@v6
+        with:
+          name: cve-reports
+          path: |
+            trivy-results.json
+            opkg_cve_results.json
+
+      - name: Build unified report
+        run: |
+          python3 scripts/merge_reports.py firmwalker_output.txt trivy-results.json opkg_cve_results.json hardware_risk_rules.json unified_report.json
+          cat unified_report.json
+
+      - name: Generate dashboard data
+        run: python3 scripts/build_dashboard_data.py unified_report.json docs/data.js
+
+      - name: Commit dashboard data
+        if: github.event_name == 'push'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/data.js
+          git diff --staged --quiet || git commit -m "chore: update dashboard data [skip ci]"
+          git push
+
+      - name: Upload unified report
+        uses: actions/upload-artifact@v6
+        with:
+          name: unified-security-report
+          path: unified_report.json
+
+      - name: Send report to Make.com
+        run: |
+          curl --fail-with-body -X POST \
+            -H "Content-Type: application/json" \
+            --data @unified_report.json \
+            "$MAKE_WEBHOOK_URL"
+        env:
+          MAKE_WEBHOOK_URL: ${{ secrets.MAKE_WEBHOOK_URL }}
